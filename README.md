@@ -30,14 +30,14 @@ Apptainer 1.3.1 or any compatible version.
 4. Log in from your browser with the password you set previously.
 
 ## Description
-### Base container image:
+### Base container image
 This Apptainer container image is built upon the r-ver Docker image 
 from the Rocker Project. The Rocker Project provides Docker container
 images for the R environment. Additionally, most features in this
 Apptainer image are installed at build time using scripts from the 
 Rocker Project.
 
-### List of container features:
+### List of container features
 - R
 - RStudio Server
 - Pandoc
@@ -50,16 +50,16 @@ Rocker Project.
 - A virtual environment for Python 3
 - CmdStan
 
-### Graphic User Interfaces:
+### Graphic User Interfaces
 PyQuaStR ships two web-based Integrated Development Interfaces: RStudio
 Server and JupyterLab. By default, starting an instances exposes them
 on the localhost (127.0.0.1) over port 8888.
 
-### Build resource usage:
+### Build resource usage
 Building the container can take 30+ minutes, require 4+ Go RAM, and 
 take 2+ Go of disk space.
 
-### Password restricted access:
+### Password restricted access
 To enhance security of PyQuaStR instances, access to the web-based IDEs
 is restricted by a password. By default, PyQuaStR generates a random 
 password when an instance is started, and prints it to the instance 
@@ -67,21 +67,21 @@ standard output log (`apptainer instance list --logs <instance name>`).
 Alternatively, a custom password can be set through the `PASSWORD` 
 environment variable when starting the instance.
 
-### Additional security features:
+### Additional security features
 By default, Jupyter Lab runs on the localhost (127.0.0.1) over port 
 8888 and restricts remote access. Thus, it can only be accessed from
 the localhost, or through an SSH tunnel. It is highly recommended to
 keep this security feature enabled as the connection is not encrypted 
 with SSL/TLS.
 
-### Bind directories:
+### Bind directories
 When running a container, Apptainer can bind locations on the host to
 the container. By default, several system-defined bind paths are
 defined, such as the home directory of the user, current working
 directory, and tmp directory. Users can set up additional bind paths
 with the `--bind [host path]:[container path]` option.
 
-### Sandbox mode:
+### Sandbox mode
 During development, it can be useful to build images with the --sandbox
 option to create a writable directory instead of an immutable container
 image. Sandbox directories behave similarly as images in the 
@@ -89,7 +89,7 @@ singularity image format, but can be modified with the --writable
 option. It is recommended to use this option for development purposes 
 only, since it decreases reproducibility.
 
-### Overlaying:
+### Overlaying
 Apptainer container images are read-only by default. However, PyQuaStR
 containers require read-write access. Overlaying a filesystem provides
 the illusion of read-write access to the immutable container. There are
@@ -103,13 +103,13 @@ two different types of overlays:
     they provide a simple way to install additional dependencies at 
     runtime.
 
-### Creating a persistent overlay:
+### Creating a persistent overlay
 To create a persistent overlay that can store additional dependencies, 
 use the command `apptainer overlay create --size <size in Mb> 
 --create-dir / pyquastr.img`. Then, attach the persistent overlay to 
 the container at run time with the `--overlay pyquastr.img` option.
 
-### Dependencies management:
+### Dependencies management
 PyQuaStR facilitates the installation and use of apt, TeXlive, python,
 and R dependencies. Dependencies respecively stated in apt-deps.txt, 
 tex-deps.txt, python-deps.txt, and r-deps are installed at build time. 
@@ -119,7 +119,7 @@ pyquastr-install-deps command or by setting the environment variable
 `PYQUASTR_INSTALL_DEPS=true`. Note that installing apt dependencies 
 requires the --fakeroot option.
 
-### User configuration files:
+### User configuration files
 By default user-specific configuration files for Jupyter Lab and 
 RStudio Server are stored in the user home directory. Thus, those
 options persist on the host and can be shared across containers. To
@@ -170,7 +170,7 @@ Create a persistent image overlay:
   apptainer overlay create --size <overlay size> --create-dir <overlay directory> <overlay path>
   ```
 
-## Arguments
+### Arguments
  name | description
 ---|---
  \<image path\> | a path to an Apptainer image in the singularity image format (.sif) or a sandbox directory (see the sandbox build option) 
@@ -182,7 +182,7 @@ Create a persistent image overlay:
  \<overlay directory\> | a path to the overlay directory in the container 
  \<overlay path\> |  a path to the overlay image on the host 
 
-## Build options
+### Build options
  option | description 
 ---|---
  -B, --build-arg \<variable=value\> | defines variable=value to replace entries in the build definition file 
@@ -193,7 +193,7 @@ Create a persistent image overlay:
  -s, --sandbox | build image as sandbox format (chroot directory structure) 
  ... | other build options are described in the Apptainer user manual 
 
-## Options
+### Options
  option | description 
 ---|---
  -e, --cleanenv | clean the environment before running container 
