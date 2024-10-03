@@ -1,0 +1,445 @@
+Bootstrap: docker
+From: rocker/{{ ROCKER_IMAGE }}@{{ ROCKER_DIGEST }}
+
+%arguments
+    ROCKER_IMAGE=r-ver
+    ROCKER_DIGEST=sha256:e4a6647856d2fc0e772e5b1a4cdd61fb979d5285de989d47e8dfc60bfd1d47f8
+    S6_VERSION="v2.1.0.2"
+    RSTUDIO_VERSION="2023.12.1+402"
+    PANDOC_VERSION="default"
+    QUARTO_VERSION="default"
+    CTAN_REPO="https://www.texlive.info/tlnet-archive/2024/04/23/tlnet"
+    VIRTUAL_ENV=/opt/venv
+    CMDSTAN=/usr/local/cmdstan
+    CMDSTAN_VERSION="2.34.1"
+
+%setup
+    touch apt-deps.txt \
+    && touch tex-deps.txt \
+    && touch python-deps.txt \
+    && touch r-deps.txt
+
+%files
+    apt-deps.txt
+    tex-deps.txt
+    python-deps.txt
+    r-deps.txt
+
+%post
+    # Set build arguments as environment variables
+    echo "Setting build arguments as environment variables ..." \
+    && export ROCKER_IMAGE={{ ROCKER_IMAGE }} \
+    && export ROCKER_DIGEST={{ ROCKER_DIGEST }} \
+    && export S6_VERSION={{ S6_VERSION }} \
+    && export RSTUDIO_VERSION={{ RSTUDIO_VERSION }} \
+    && export PANDOC_VERSION={{ PANDOC_VERSION }} \
+    && export QUARTO_VERSION={{ QUARTO_VERSION }} \
+    && export CTAN_REPO={{ CTAN_REPO }} \
+    && export VIRTUAL_ENV={{ VIRTUAL_ENV }} \
+    && export CMDSTAN={{ CMDSTAN }} \
+    && export CMDSTAN_VERSION={{ CMDSTAN_VERSION }}
+
+    # Empty default user initialization script
+    echo "Emptying default user initialization script ..." \
+    && mv /rocker_scripts/default_user.sh /rocker_scripts/_default_user.sh \
+    && touch /rocker_scripts/default_user.sh \
+    && chmod 777 /rocker_scripts/default_user.sh
+    
+    # Install RStudio Server
+    echo "Installing RStudio Server with no default user ..." \
+    && ./rocker_scripts/install_rstudio.sh \
+    && echo export S6_VERSION=${S6_VERSION} >> $APPTAINER_ENVIRONMENT \
+    && echo export RSTUDIO_VERSION=${RSTUDIO_VERSION} >> $APPTAINER_ENVIRONMENT \
+
+    # Install Pandoc
+    echo "Installing Pandoc ..." \
+    && ./rocker_scripts/install_pandoc.sh ${PANDOC_VERSION} \
+    && echo export PANDOC_VERSION=${PANDOC_VERSION} >> $APPTAINER_ENVIRONMENT
+
+    # Install Quarto
+    echo "Installing Quarto ..." \
+    && ./rocker_scripts/install_quarto.sh ${QUARTO_VERSION} \
+    && echo export QUARTO_VERSION=${QUARTO_VERSION} >> $APPTAINER_ENVIRONMENT
+
+    # Install verse and texlive
+    echo "Installing TeXlive and publishing packages ..." \
+    && ./rocker_scripts/install_verse.sh \
+    && echo export CTAN_REPO=${CTAN_REPO} >> $APPTAINER_ENVIRONMENT
+
+    # Install geospatial packages
+    echo "Installing geospatial packages ..." \
+    && ./rocker_scripts/install_geospatial.sh
+
+    # Install Python and JupyterLab
+    echo "Installing Python and JupyterLab ..." \
+    && ./rocker_scripts/install_jupyter.sh \
+    && echo export VIRTUAL_ENV=${VIRTUAL_ENV} >> $APPTAINER_ENVIRONMENT
+
+    # Update path
+    echo "Updating path ..." \
+    && echo export PATH=${VIRTUAL_ENV}/bin:${PATH}:/usr/local/texlive/bin/linux >> $APPTAINER_ENVIRONMENT \
+    && export PATH=${VIRTUAL_ENV}/bin:${PATH}:/usr/local/texlive/bin/linux
+
+    # Install CmdStan from source
+    mkdir -p {{ CMDSTAN }} \
+    && wget -O cmdstan.tar.gz https://github.com/stan-dev/cmdstan/releases/download/v{{ CMDSTAN_VERSION }}/cmdstan-{{ CMDSTAN_VERSION }}.tar.gz \
+    && tar -xzf cmdstan.tar.gz -C {{ CMDSTAN }} --strip-components=1 \
+    && cd {{ CMDSTAN }} \
+    && make build \
+    && cd / \
+    && rm cmdstan.tar.gz \
+    && echo export CMDSTAN=${CMDSTAN} >> $APPTAINER_ENVIRONMENT \
+    && echo export CMDSTAN_VERSION=${CMDSTAN_VERSION} >> $APPTAINER_ENVIRONMENT \
+    && install2.r --error --skipinstalled --ncpus -1 --repos https://mc-stan.org/r-packages/ --repos getOption rstan cmdstanr \
+    && rm -rf /tmp/downloaded_packages \
+    && strip /usr/local/lib/R/site-library/*/libs/*.so \
+    && python3 -m pip --no-cache-dir install pystan
+
+    # Add custom command to install dependencies
+    echo "Adding a custom command to install dependencies ..." \
+    && touch /usr/local/bin/pyquastr-install-deps \
+    && chmod 777 /usr/local/bin/pyquastr-install-deps \
+    && echo '#!/bin/bash' >> /usr/local/bin/pyquastr-install-deps \
+    && echo 'if [ -s "${APT_DEPS_FILE:-apt-deps.txt}" ] && [ `id -u` -eq 0 ]' >> /usr/local/bin/pyquastr-install-deps \
+    && echo 'then' >> /usr/local/bin/pyquastr-install-deps \
+    && echo '    apt update \' >> /usr/local/bin/pyquastr-install-deps \
+    && echo '    && xargs -r -a ${APT_DEPS_FILE:-apt-deps.txt} apt install -y \' >> /usr/local/bin/pyquastr-install-deps \
+    && echo '    && rm -rf /var/lib/apt/lists/*' >> /usr/local/bin/pyquastr-install-deps \
+    && echo 'fi' >> /usr/local/bin/pyquastr-install-deps \
+    && echo 'if [ -s "${TEX_DEPS_FILE:-tex-deps.txt}" ]' >> /usr/local/bin/pyquastr-install-deps \
+    && echo 'then' >> /usr/local/bin/pyquastr-install-deps \
+    && echo '    xargs -r -a ${TEX_DEPS_FILE:-tex-deps.txt} tlmgr install' >> /usr/local/bin/pyquastr-install-deps \
+    && echo 'fi' >> /usr/local/bin/pyquastr-install-deps \
+    && echo 'if [ -s "${PIP_DEPS_FILE:-python-deps.txt}" ]' >> /usr/local/bin/pyquastr-install-deps \
+    && echo 'then' >> /usr/local/bin/pyquastr-install-deps \
+    && echo '    python3 -m pip --no-cache-dir install -r ${PIP_DEPS_FILE:-python-deps.txt}' >> /usr/local/bin/pyquastr-install-deps \
+    && echo 'fi' >> /usr/local/bin/pyquastr-install-deps \
+    && echo 'if [ -s "${R_DEPS_FILE:-r-deps.txt}" ]' >> /usr/local/bin/pyquastr-install-deps \
+    && echo 'then' >> /usr/local/bin/pyquastr-install-deps \
+    && echo '    xargs -r -a ${R_DEPS_FILE:-r-deps.txt} install2.r --error --skipinstalled --ncpus -1' >> /usr/local/bin/pyquastr-install-deps \
+    && echo '    rm -rf /tmp/downloaded_packages' >> /usr/local/bin/pyquastr-install-deps \
+    && echo '    strip /usr/local/lib/R/site-library/*/libs/*.so' >> /usr/local/bin/pyquastr-install-deps \
+    && echo 'fi' >> /usr/local/bin/pyquastr-install-deps
+
+    # Install additional dependencies
+    echo "Installing additional dependencies ..." \
+    && ./usr/local/bin/pyquastr-install-deps
+
+%environment
+    export LANG=C.UTF-8
+    export LC_ALL=C.UTF-8
+    export RETICULATE_PYTHON={{ VIRTUAL_ENV }}/bin/python3
+    export LISTEN_IP=127.0.0.1
+    export LISTEN_PORT=8888
+    export PYQUASTR_INSTALL_DEPS=false
+
+%startscript
+    #!/bin/bash
+
+    # Set location for user configuration files
+    echo "Setting location for user-specific configuration files ... " \
+    && touch /.singularity.d/env/999-pyquastr-userconfig.sh \
+    && chmod 777 /.singularity.d/env/999-pyquastr-userconfig.sh \
+    && echo "export USERCONFIG=${USERCONFIG:-${HOME}}" >> /.singularity.d/env/999-pyquastr-userconfig.sh \
+    && echo 'export XDG_DATA_HOME=${USERCONFIG}/.local/share' >> /.singularity.d/env/999-pyquastr-userconfig.sh \
+    && echo 'export XDG_CONFIG_HOME=${USERCONFIG}/.config' >> /.singularity.d/env/999-pyquastr-userconfig.sh \
+    && echo 'export XDG_STATE_HOME=${USERCONFIG}/.local/state' >> /.singularity.d/env/999-pyquastr-userconfig.sh \
+    && echo 'export XDG_CACHE_HOME=${USERCONFIG}/.cache' >> /.singularity.d/env/999-pyquastr-userconfig.sh \
+    && echo 'export IPYTHONDIR=${USERCONFIG}/.ipython' >> /.singularity.d/env/999-pyquastr-userconfig.sh \
+    && echo 'export JUPYTER_CONFIG_DIR=${USERCONFIG}/.jupyter' >> /.singularity.d/env/999-pyquastr-userconfig.sh
+    source /.singularity.d/env/999-pyquastr-userconfig.sh \
+    && echo "User-specific configuration files will be stored in ${USERCONFIG}."
+
+    # Set custom bash prompt
+    echo "Setting custom bash prompt ..." \
+    && touch /.singularity.d/env/999-pyquastr-prompt.sh \
+    && chmod 777 /.singularity.d/env/999-pyquastr-prompt.sh \
+    && echo 'export PS1="\[\033[0;32m\]\u@${APPTAINER_INSTANCE:-PyQuaStR}\[\033[0m\]:\[\033[0;34m\]\w\[\033[0m\]\$ "' >> /.singularity.d/env/999-pyquastr-prompt.sh \
+    && cat /.singularity.d/env/999-pyquastr-prompt.sh | sed -n -e 's/.*export \(.*\)$/\1/p' >> /etc/bash.bashrc \
+    && echo 'export SHELL=/bin/bash' >> /.singularity.d/env/999-pyquastr-prompt.sh
+    source /.singularity.d/env/999-pyquastr-prompt.sh
+
+    # Export apptainer and pyquastr environment variables to Renviron.site
+    echo "Adding Apptainer and PyQuaStR environment variables to /etc/Renviron.site ..."
+    for file in /.singularity.d/env/*; do
+        cat $file | sed -n -e 's/.*export \(.*=.*\)$/\1/p' >> ${R_HOME}/etc/Renviron.site
+    done
+
+    # Install required dependencies
+    if [ "${PYQUASTR_INSTALL_DEPS}" == "true" ]
+    then
+        echo "Installing required dependencies found in $(pwd) ..." \
+        && source /usr/local/bin/pyquastr-install-deps
+    fi
+
+    # Setting the Jupyter Server password
+    echo "Setting the password for Jupyter Lab ..." \
+    && PASSWORD=${PASSWORD:-$(openssl rand -base64 12)} \
+    && echo "Use the following password to access Jupyter Lab: ${PASSWORD}"
+    
+    # Start Jupyter Lab
+    echo "Starting JupyterLab on ${LISTEN_IP}:${LISTEN_PORT} ..."
+    jupyter labextension disable "@jupyterlab/apputils-extension:announcements"
+    jupyter lab --no-browser -y \
+        --ip ${LISTEN_IP} --port ${LISTEN_PORT} \
+        --IdentityProvider.token="" \
+        --PasswordIdentityProvider.hashed_password=$(PASSWORD=${PASSWORD} python3 -c "from jupyter_server.auth import passwd;import os;print(passwd(os.environ['PASSWORD']))") \
+        --PasswordIdentityProvider.allow_password_change=False
+
+%labels
+    Author Alain Chauffoureaux
+    Title PyQuaStR
+    Copyright 2024 Alain Chauffoureaux
+    License GPLv3
+    org.label-schema.name PyQuaStR
+    org.label-schema.description A reproducible development environment that features R, Python, Stan, LaTeX, and Quarto
+
+%help
+    PyQuaStR is a reproducible container that features R, Python, Stan, LaTeX,
+    and Quarto.
+
+    SYNOPSIS
+        This container provides a reproducible development environment that 
+        features R, Python, Stan, LaTeX, and Quarto. It ships the JupyterLab
+        and RStudio Server Integrated Development Environments and facilitates
+        package management.
+    
+    REQUIREMENTS
+        Apptainer 1.3.1 or any compatible version.
+
+    QUICK START
+        1. Build the container .sif image from the definition file:
+            apptainer build pyquastr.sif pyquastr.def
+
+        2. Start a container instance with the password of your choice:
+            apptainer instance start --writable-tmpfs \
+            --env PASSWORD=password pyquastr.sif pyquastr
+
+        3. Open JupyterLab or RStudio Server in your browser:
+            <http://127.0.0.1:8888/lab>
+            <http://127.0.0.1:8888/rstudio>
+
+        4. Log in from your browser with the password you set previously.
+
+    DESCRIPTION
+        Base container image:
+        This Apptainer container image is built upon the r-ver Docker image 
+        from the Rocker Project. The Rocker Project provides Docker container
+        images for the R environment. Additionally, most features in this
+        Apptainer image are installed at build time using scripts from the 
+        Rocker Project.
+
+        List of container features:
+        - R
+        - RStudio Server
+        - Pandoc
+        - Quarto
+        - TeXlive
+        - Commonly used R publishing packages
+        - Commonly used R geospatial packages
+        - Python 3
+        - JupyterLab
+        - A virtual environment for Python 3
+        - CmdStan
+
+        Graphic User Interfaces:
+        PyQuaStR ships two web-based Integrated Development Interfaces: RStudio
+        Server and JupyterLab. By default, starting an instances exposes them
+        on the localhost (127.0.0.1) over port 8888.
+
+        Build resource usage:
+        Building the container can take 30+ minutes, require 4+ Go RAM, and 
+        take 2+ Go of disk space.
+
+        Password restricted access:
+        To enhance security of PyQuaStR instances, access to the web-based IDEs
+        is restricted by a password. By default, PyQuaStR generates a random 
+        password when an instance is started, and prints it to the instance 
+        standard output log (apptainer instance list --logs <instance name>).
+        Alternatively, a custom password can be set through the PASSWORD 
+        environment variable when starting the instance.
+
+        Additional security features:
+        By default, Jupyter Lab runs on the localhost (127.0.0.1) over port 
+        8888 and restricts remote access. Thus, it can only be accessed from
+        the localhost, or through an SSH tunnel. It is highly recommended to
+        keep this security feature enabled as the connection is not encrypted 
+        with SSL/TLS.
+
+        Bind directories:
+        When running a container, Apptainer can bind locations on the host to
+        the container. By default, several system-defined bind paths are
+        defined, such as the home directory of the user, current working
+        directory, and tmp directory. Users can set up additional bind paths
+        with the --bind [host path]:[container path] option.
+
+        Sandbox mode:
+        During development, it can be useful to build images with the --sandbox
+        option to create a writable directory instead of an immutable container
+        image. Sandbox directories behave similarly as images in the 
+        singularity image format, but can be modified with the --writable 
+        option. It is recommended to use this option for development purposes 
+        only, since it decreases reproducibility.
+
+        Overlaying:
+        Apptainer container images are read-only by default. However, PyQuaStR
+        containers require read-write access. Overlaying a filesystem provides
+        the illusion of read-write access to the immutable container. There are
+        two different types of overlays:
+        -   Temporary overlays store all changes in an in-memory temporary 
+            filesystem which is discarded as soon as the container finishes 
+            executing. They are useful in production contexts as they ensure 
+            full reproducibility.
+        -   Persistent overlays store all changes in a an ext3 filesystem 
+            image. Persistent overlays are useful in development contexts as 
+            they provide a simple way to install additional dependencies at 
+            runtime.
+
+        Creating a persistent overlay:
+        To create a persistent overlay that can store additional dependencies, 
+        use the command `apptainer overlay create --size <size in Mb> 
+        --create-dir / pyquastr.img`. Then, attach the persistent overlay to 
+        the container at run time with the `--overlay pyquastr.img` option.
+
+        Dependencies management:
+        PyQuaStR facilitates the installation and use of apt, TeXlive, python,
+        and R dependencies. Dependencies respecively stated in apt-deps.txt, 
+        tex-deps.txt, python-deps.txt, and r-deps are installed at build time. 
+        When running sandbox directories or images with a persistent overlay, 
+        it is possible to install additional dependencies at run time with the 
+        pyquastr-install-deps command or by setting the environment variable 
+        PYQUASTR_INSTALL_DEPS=true. Note that installing apt dependencies 
+        requires the --fakeroot option.
+
+        User configuration files:
+        By default user-specific configuration files for Jupyter Lab and 
+        RStudio Server are stored in the user home directory. Thus, those
+        options persist on the host and can be shared across containers. To
+        isolate those options in the container, it is possible to set the 
+        USERCONFIG environment variable to another location that is not mounted
+        on the host (e.g. /opt).
+
+    USAGE
+        Build the container .sif image from the definition file:
+            apptainer build [build options...] <image path> pyquastr.def
+
+        Start a PyQuaStR instance:
+            apptainer instance start [options...] <image path> <instance name>
+    
+        Stop a PyQuaStR instance:
+            apptainer instance stop <instance name>
+
+        Run a shell within a PyQuaStR container:
+            apptainer shell [options...] <container>
+    
+        Execute a command within the container:
+            apptainer exec [options...] <container> <command>
+
+        Run a script within the container:
+            apptainer run [options...] <container> <script path>
+
+        Create a persistent image overlay:
+            apptainer overlay create --size <overlay size> \
+            --create-dir <overlay directory> <overlay path>
+
+    ARGUMENTS
+        <image path>                    a path to an Apptainer image in the
+                                        singularity image format (.sif) or a
+                                        sandbox directory (see the sandbox
+                                        build option)      
+        <instance name>                 a user-defined name for an Apptainer 
+                                        instance (e.g. pyquastr-1)
+        <container>                     the image path or instance name of the 
+                                        target container
+        <command>                       a command to run in the container shell
+        <script path>                   a script to execute in the container
+        <overlay size>                  size of the image overlay in Mb
+        <overlay directory>             a path to the overlay directory in the
+                                        container
+        <overlay path>                  a path to the overlay image on the host
+
+    BUILD OPTIONS
+        -B, --build-arg <strings>       defines variable=value to replace
+                                        entries in the build definition file
+        -h, --help                      help for build
+        -F, --force                     overwrite an image file if it exists
+            --passphrase                prompt for an encryption passphrase
+            --pem-path <path>           enter an path to a PEM formatted RSA 
+                                        key for an encrypted container
+        -s, --sandbox                   build image as sandbox format (chroot 
+                                        directory structure)
+        ...                             other build options are described in 
+                                        the Apptainer user manual
+    
+    OPTIONS
+        -e, --cleanenv                  clean environment before running
+                                        container
+        -c, --contain                   use minimal /dev and empty other 
+                                        directories (e.g. /tmp and $HOME) 
+                                        instead of sharing filesystems from 
+                                        your host
+        -C, --containall                contain not only file systems, but also
+                                        PID, IPC, and environment
+            --env <KEY=value>           pass environment variable to contained 
+                                        process (default [])
+            --env-file <file>           pass environment variables from file to
+                                        contained process
+        -f, --fakeroot                  run container with the appearance of 
+                                        running as root
+        -h, --help                      display help
+        -H, --home <path>               a home directory specification; spec 
+                                        can either be a src path or src:dest 
+                                        pair; src is the source path of the
+                                        home directory outside the container
+                                        and dest overrides the home directory 
+                                        within the container
+        --no-eval                       do not shell evaluate env vars or OCI 
+                                        container CMD/ENTRYPOINT/ARGS
+        --no-home                       do NOT mount users home directory if 
+                                        /home is not the current working 
+                                        directory
+        -o, --overlay strings           use an overlayFS image for persistent 
+                                        data storage or as read-only layer of 
+                                        container
+            --passphrase                prompt for an encryption passphrase
+            --pem-path <path>           enter an path to a PEM formatted RSA 
+                                        key for an encrypted container
+            --unsquash                  convert SIF file to temporary sandbox
+                                        before running
+        -W, --workdir <path>            working directory to be used for /tmp, 
+                                        /var/tmp and $HOME (if -c/--contain was
+                                        also used)
+        -w, --writable                  by default all Apptainer containers are
+                                        available as read only; this option 
+                                        makes the file system accessible as 
+                                        read/write
+            --writable-tmpfs            makes the file system accessible as 
+                                        read-write with non persistent data 
+                                        (with overlay support only)
+        ...                             other options are described in the 
+                                        Apptainer user manual
+
+    ADDITIONAL HELP
+        The Apptainer user manual provides documentation on Apptainer usage.
+        <https://apptainer.org/docs/user/main>
+        
+    ACKNOWLEDGMENT
+        This container definition file uses a Docker image and shell scripts 
+        from the Rocker Project. It is implemented using the Apptainer 
+        container platform (formely Singularity).
+    
+    COPYRIGHT NOTICE
+        Copyright 2023 Alain Chauffoureaux
+
+        This program is free software: you can redistribute it and/or modify it
+        under the terms of the GNU General Public License as published by the 
+        Free Software Foundation, either version 3 of the License, or (at your
+        option) any later version.
+
+        This program is distributed in the hope that it will be useful, but 
+        WITHOUT ANY WARRANTY; without even the implied warranty of 
+        MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU 
+        General Public License for more details.
+
+        You should have received a copy of the GNU General Public License along
+        with this program. If not, see <https://www.gnu.org/licenses/>.
