@@ -1,0 +1,8 @@
+# Ignore empty dependencies files
+apt-deps.txt
+python-deps.txt
+r-deps.txt
+tex-deps.txt
+
+# Ignore .sif binary file
+**.sif
