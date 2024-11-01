@@ -215,6 +215,26 @@ Create a persistent image overlay:
  --writable-tmpfs | makes the file system accessible as read-write with non persistent data (with overlay support only) 
  ... | other options are described in the Apptainer user manual 
 
+## Troubleshooting
+### No space left on device during the build process
+On many linux distributions, the temporary folder is an in-memory `tmpfs` 
+filesystem. To prevent the build process to fail because there is no more
+space left in the RAM buffer, you can set the temporary folder for Apptainer
+to any other system location, such as `/var/tmp` (recommended) with the 
+`APPTAINER_TMPDIR` environment variable:
+
+- Using the `-E` option in Apptainer commands:
+
+```
+-E APPTAINER_TMPDIR=/var/tmp
+```
+
+- By exporting it to your shell variables:
+
+```
+export APPTAINER_TMPDIR=/var/tmp
+```
+
 ## Additional help
 The Apptainer user manual provides documentation on Apptainer usage.
 
