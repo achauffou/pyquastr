@@ -3,15 +3,15 @@ From: rocker/{{ ROCKER_IMAGE }}@{{ ROCKER_DIGEST }}
 
 %arguments
     ROCKER_IMAGE=r-ver
-    ROCKER_DIGEST=sha256:e4a6647856d2fc0e772e5b1a4cdd61fb979d5285de989d47e8dfc60bfd1d47f8
+    ROCKER_DIGEST=sha256:4b3e55e4bcf889ca973f873327aba714f80aa314559e07c59d8e566f9938202b
     S6_VERSION="v2.1.0.2"
-    RSTUDIO_VERSION="2023.12.1+402"
+    RSTUDIO_VERSION="2024.12.0+467"
     PANDOC_VERSION="default"
     QUARTO_VERSION="default"
-    CTAN_REPO="https://www.texlive.info/tlnet-archive/2024/04/23/tlnet"
+    CTAN_REPO="https://www.texlive.info/tlnet-archive/2025/01/28/tlnet"
     VIRTUAL_ENV=/opt/venv
     CMDSTAN=/usr/local/cmdstan
-    CMDSTAN_VERSION="2.34.1"
+    CMDSTAN_VERSION="2.36.0"
 
 %setup
     touch apt-deps.txt \
