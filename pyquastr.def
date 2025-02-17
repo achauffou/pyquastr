@@ -9,6 +9,8 @@ From: rocker/{{ ROCKER_IMAGE }}@{{ ROCKER_DIGEST }}
     PANDOC_VERSION="default"
     QUARTO_VERSION="default"
     CTAN_REPO="https://www.texlive.info/tlnet-archive/2025/01/28/tlnet"
+    RUSTUP_HOME=/usr/local/.rustup
+    CARGO_HOME=/usr/local/.cargo
     VIRTUAL_ENV=/opt/venv
     CMDSTAN=/usr/local/cmdstan
     CMDSTAN_VERSION="2.36.0"
@@ -35,6 +37,8 @@ From: rocker/{{ ROCKER_IMAGE }}@{{ ROCKER_DIGEST }}
     && export PANDOC_VERSION={{ PANDOC_VERSION }} \
     && export QUARTO_VERSION={{ QUARTO_VERSION }} \
     && export CTAN_REPO={{ CTAN_REPO }} \
+    && export RUSTUP_HOME={{RUSTUP_HOME}} \
+    && export CARGO_HOME={{CARGO_HOME}} \
     && export VIRTUAL_ENV={{ VIRTUAL_ENV }} \
     && export CMDSTAN={{ CMDSTAN }} \
     && export CMDSTAN_VERSION={{ CMDSTAN_VERSION }}
@@ -65,6 +69,14 @@ From: rocker/{{ ROCKER_IMAGE }}@{{ ROCKER_DIGEST }}
     echo "Installing TeXlive and publishing packages ..." \
     && ./rocker_scripts/install_verse.sh \
     && echo export CTAN_REPO=${CTAN_REPO} >> $APPTAINER_ENVIRONMENT
+
+    # Install RUST toolchain
+    echo "Installing Rust toolchain ..." \
+    && curl --proto '=https' --tlsv1.2 https://sh.rustup.rs -sSf | sh -s -- -y --no-modify-path \
+    && echo export RUSTUP_HOME=${RUSTUP_HOME} >> $APPTAINER_ENVIRONMENT \
+    && echo export CARGO_HOME=${CARGO_HOME} >> $APPTAINER_ENVIRONMENT \
+    && echo export PATH=${CARGO_HOME}/bin:${PATH} >> $APPTAINER_ENVIRONMENT \
+    && export PATH=${CARGO_HOME}/bin:${PATH}
 
     # Install geospatial packages
     echo "Installing geospatial packages ..." \
