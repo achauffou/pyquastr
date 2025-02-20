@@ -168,6 +168,11 @@ From: rocker/{{ ROCKER_IMAGE }}@{{ ROCKER_DIGEST }}
     && echo '    xargs -r -a ${R_DEPS_FILE:-r-deps.txt} install2.r --error --skipinstalled --ncpus -1' >> /usr/local/bin/pyquastr-install-deps \
     && echo '    rm -rf /tmp/downloaded_packages' >> /usr/local/bin/pyquastr-install-deps \
     && echo '    strip /usr/local/lib/R/site-library/*/libs/*.so' >> /usr/local/bin/pyquastr-install-deps \
+    && echo 'fi' >> /usr/local/bin/pyquastr-install-deps \
+    && echo 'if [ -s "${FNT_DEPS_FILE:-fnt-deps.txt}" ] && [ `id -u` -eq 0 ]' >> /usr/local/bin/pyquastr-install-deps \
+    && echo 'then' >> /usr/local/bin/pyquastr-install-deps \
+    && echo '    xargs -r -a ${FNT_DEPS_FILE:-fnt-deps.txt} -n 1 /usr/local/bin/pyquastr-get-font' >> /usr/local/bin/pyquastr-install-deps \
+    && echo '    fc-cache -fv' >> /usr/local/bin/pyquastr-install-deps \
     && echo 'fi' >> /usr/local/bin/pyquastr-install-deps
 
     # Install additional dependencies
