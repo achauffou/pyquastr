@@ -138,6 +138,12 @@ From: rocker/{{ ROCKER_IMAGE }}@{{ ROCKER_DIGEST }}
     && echo '    done' >> /usr/local/bin/pyquastr-get-font \
     && echo 'done' >> /usr/local/bin/pyquastr-get-font
 
+    # Install some additional fonts
+    echo "Trying to install some additional fonts ..." \
+    && echo raleway intertight publicsans opensans notosans notosansdisplay notoserif notoserifdisplay notosansmono \
+    | xargs -r -d ' ' -n 1 /usr/local/bin/pyquastr-get-font \
+    && fc-cache -fv
+
     # Add custom command to install dependencies
     echo "Adding a custom command to install dependencies ..." \
     && touch /usr/local/bin/pyquastr-install-deps \
