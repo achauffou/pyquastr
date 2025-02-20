@@ -6,8 +6,8 @@ From: rocker/{{ ROCKER_IMAGE }}@{{ ROCKER_DIGEST }}
     ROCKER_DIGEST=sha256:4b3e55e4bcf889ca973f873327aba714f80aa314559e07c59d8e566f9938202b
     S6_VERSION="v2.1.0.2"
     RSTUDIO_VERSION="2024.12.0+467"
-    PANDOC_VERSION="default"
-    QUARTO_VERSION="default"
+    PANDOC_VERSION="3.6.3"
+    QUARTO_VERSION="1.6.40"
     CTAN_REPO="https://www.texlive.info/tlnet-archive/2025/01/28/tlnet"
     RUSTUP_HOME=/usr/local/.rustup
     CARGO_HOME=/usr/local/.cargo
