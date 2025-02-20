@@ -289,6 +289,8 @@ From: rocker/{{ ROCKER_IMAGE }}@{{ ROCKER_DIGEST }}
         - Pandoc
         - Quarto
         - TeXlive
+        - Rust toolchain
+        - Typst
         - Commonly used R publishing packages
         - Commonly used R geospatial packages
         - Python 3
@@ -335,7 +337,7 @@ From: rocker/{{ ROCKER_IMAGE }}@{{ ROCKER_DIGEST }}
         option. It is recommended to use this option for development purposes 
         only, since it decreases reproducibility.
 
-        Overlaying:
+        Overlays:
         Apptainer container images are read-only by default. However, PyQuaStR
         containers require read-write access. Overlaying a filesystem provides
         the illusion of read-write access to the immutable container. There are
@@ -349,7 +351,7 @@ From: rocker/{{ ROCKER_IMAGE }}@{{ ROCKER_DIGEST }}
             they provide a simple way to install additional dependencies at 
             runtime.
 
-        Creating a persistent overlay:
+        Persistent overlays:
         To create a persistent overlay that can store additional dependencies, 
         use the command `apptainer overlay create --size <size in Mb> 
         --create-dir / pyquastr.img`. Then, attach the persistent overlay to 
@@ -364,6 +366,18 @@ From: rocker/{{ ROCKER_IMAGE }}@{{ ROCKER_DIGEST }}
         pyquastr-install-deps command or by setting the environment variable 
         PYQUASTR_INSTALL_DEPS=true. Note that installing apt dependencies 
         requires the --fakeroot option.
+
+        Additional fonts:
+        Similarly to dependencies management, PyQuaStR facilitates getting 
+        additional fonts. It downloads fonts from Debian or Google with the
+        [fnt](https://github.com/alexmyczko/fnt) package and attempts to 
+        provide a static version of the font alongside its variable 
+        counterpart. Similarly to dependencies, fonts stated in fnt-deps.txt 
+        are installed at build time or at run time if the --fakeroot option 
+        and the environment variable PYQUASTR_INSTALL_DEPS=true are set. You 
+        can manually search for fonts with the `fnt search <font-name>` 
+        command. Do not use the font or google prefix in fnt-deps.txt (e.g. 
+        notosans).
 
         User configuration files:
         By default user-specific configuration files for Jupyter Lab and 
