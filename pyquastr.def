@@ -111,6 +111,33 @@ From: rocker/{{ ROCKER_IMAGE }}@{{ ROCKER_DIGEST }}
     && strip /usr/local/lib/R/site-library/*/libs/*.so \
     && python3 -m pip --no-cache-dir install pystan
 
+    # Add a custom command to install additional fonts
+    echo "Adding a custom command to install additional fonts ..." \
+    && apt update \
+    && apt install -y lcdf-typetools fnt \
+    && rm -rf /var/lib/apt/lists/* \
+    && python3 -m pip --no-cache-dir install fonttools \
+    && touch /usr/local/bin/pyquastr-get-font \
+    && chmod 777 /usr/local/bin/pyquastr-get-font \
+    && echo '#!/bin/bash' >> /usr/local/bin/pyquastr-get-font \
+    && echo 'rm -f /usr/local/share/fonts/*' >> /usr/local/bin/pyquastr-get-font \
+    && echo 'fnt update || true' >> /usr/local/bin/pyquastr-get-font \
+    && echo 'fnt install $1 || true' >> /usr/local/bin/pyquastr-get-font \
+    && echo 'mkdir -p /usr/local/share/fonts/$1/static' >> /usr/local/bin/pyquastr-get-font \
+    && echo 'mv /usr/local/share/fonts/*.* /usr/local/share/fonts/$1' >> /usr/local/bin/pyquastr-get-font \
+    && echo 'for f in $(ls /usr/local/share/fonts/$1/ | grep .ttf)' >> /usr/local/bin/pyquastr-get-font \
+    && echo 'do' >> /usr/local/bin/pyquastr-get-font \
+    && echo '    nf=$(echo $f | grep -o '^[a-zA-Z0-9_-]*')' >> /usr/local/bin/pyquastr-get-font \
+    && echo '    mv /usr/local/share/fonts/$1/$f /usr/local/share/fonts/$1/$nf.ttf' >> /usr/local/bin/pyquastr-get-font \
+    && echo '    for i in `seq 100 100 900`' >> /usr/local/bin/pyquastr-get-font \
+    && echo '    do' >> /usr/local/bin/pyquastr-get-font \
+    && echo '        fonttools varLib.mutator /usr/local/share/fonts/$1/$nf.ttf wght=$i' >> /usr/local/bin/pyquastr-get-font \
+    && echo '        v=$(ls /usr/local/share/fonts/$1 | grep instance)' >> /usr/local/bin/pyquastr-get-font \
+    && echo '        nv=$(echo $v | sed s/instance/$i/)' >> /usr/local/bin/pyquastr-get-font \
+    && echo '        mv /usr/local/share/fonts/$1/$v /usr/local/share/fonts/$1/static/$nv' >> /usr/local/bin/pyquastr-get-font \
+    && echo '    done' >> /usr/local/bin/pyquastr-get-font \
+    && echo 'done' >> /usr/local/bin/pyquastr-get-font
+
     # Add custom command to install dependencies
     echo "Adding a custom command to install dependencies ..." \
     && touch /usr/local/bin/pyquastr-install-deps \
