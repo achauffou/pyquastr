@@ -78,6 +78,10 @@ From: rocker/{{ ROCKER_IMAGE }}@{{ ROCKER_DIGEST }}
     && echo export PATH=${CARGO_HOME}/bin:${PATH} >> $APPTAINER_ENVIRONMENT \
     && export PATH=${CARGO_HOME}/bin:${PATH}
 
+    # Install Typst
+    echo "Installing Typst ..." \
+    && cargo install --locked typst-cli
+
     # Install geospatial packages
     echo "Installing geospatial packages ..." \
     && ./rocker_scripts/install_geospatial.sh
